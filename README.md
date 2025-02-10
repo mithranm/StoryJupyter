@@ -10,6 +10,7 @@ Writing a timeline that is consistent is challenging, especially when multiple p
 
 Writing compelling characters on the first attempt is difficult. To assist writers in this endeavor, I propose characters optionally be represented through placeholders, with their attributes such as name and ethnicity easily interchangeable through python code.
 
+(if you had the mis?fortune of stumbling upon this project as of today, everything after this point is outdated. i'm working on a proper readme)
 ## Example Workflow
 
 ```python
