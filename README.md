@@ -2,7 +2,7 @@
 
 ## Motivation
 
-Complex narratives have many dynamic elements. Characters, Events, Timelines, Syuzhet, Fabula—each presents a unique challenge that threatens to derail the storytelling process. Maintaining consistency across multiple character arcs becomes a nightmare of interconnected motivations and potential plot holes. Timeline coherence demands obsessive attention, with each narrative thread risking contradiction or confusion.
+Complex narratives have many dynamic elements. Characters, Events, Timelines—each presents a unique challenge that threatens to derail the storytelling process. Maintaining consistency across multiple character arcs becomes a nightmare of interconnected motivations and potential plot holes. Timeline coherence demands obsessive attention, with each narrative thread risking contradiction or confusion.
 
 ## Solution
 
@@ -88,3 +88,4 @@ The package includes several example notebooks demonstrating key features:
 ## Requirements
 - Python 3.12 or higher
 - MongoDB instance for persistence
+- OpenAI Compatible API instance for GenAI features
