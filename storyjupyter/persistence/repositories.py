@@ -1,277 +1,182 @@
-# storyjupyter/persistence/repositories.py
-from datetime import datetime, UTC
-import json
-from sqlite3 import Connection
-from typing import Sequence, Optional
-from .schema import TimelineSchema, CharacterSchema
-from ..core.types import TimeSpec
-from ..core.models import TimelineEvent, Character
+import pymongo
+from typing import List, Dict, Any, Optional
+from ..core.models import TimelineEvent
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class TimelineRepository:
-    """SQLite repository for timeline events with chapter versioning"""
-    
-    def __init__(self, conn: Connection, chapter: Optional[int] = None) -> None:
-        """Initialize repository with connection and optional chapter context"""
-        self.conn = conn
-        self.chapter = chapter
-        
-        # Initialize schema immediately
-        self._init_schema()
-    
-    def _init_schema(self) -> None:
-        """Initialize database schema"""
-        TimelineSchema().initialize(self.conn)
-        self.conn.commit()  # Make sure schema changes are committed
-    
-    def delete_events(self, chapter: int) -> None:
-        """Delete all events for a specific chapter"""
-        cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM timeline_events WHERE chapter = ?", (chapter,))
-        self.conn.commit()
-
-    def get_current_time(self) -> Optional[datetime]:
-        """Get the current time from the database"""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT timestamp FROM current_time WHERE id = 1")
-        row = cursor.fetchone()
-        if row:
-            return datetime.fromisoformat(row[0])
-        return None
-    
-    def save_time(self, time: datetime) -> None:
-        """Save the current time to the database"""
-        cursor = self.conn.cursor()
-
-        # Insert or replace the current time
-        cursor.execute("""
-        INSERT OR REPLACE INTO current_time (id, timestamp)
-        VALUES (1, ?)
-        """, (time.isoformat(),))
-
-        self.conn.commit()
-    
-    def save_event(self, event: TimelineEvent, chapter: Optional[int] = None) -> int:
-        """Save event and return its ID"""
-        chapter = chapter or self.chapter
-        if chapter is None:
-            raise ValueError("Chapter must be specified")
-            
-        cursor = self.conn.cursor()
-        
-        # Insert main event with chapter
-        cursor.execute("""
-        INSERT INTO timeline_events (chapter, timestamp, location, content)
-        VALUES (?, ?, ?, ?)
-        """, (chapter, event.timestamp.isoformat(), event.location, event.content))
-        
-        event_id = cursor.lastrowid
-        assert event_id is not None
-        
-        # Insert metadata
-        for key, value in event.metadata.items():
-            if key != "tags":  # Tags handled separately
-                cursor.execute("""
-                INSERT INTO event_metadata (event_id, key, value)
-                VALUES (?, ?, ?)
-                """, (event_id, key, json.dumps(value)))
-        
-        # Insert tags
-        for tag in event.metadata.get("tags", []):
-            cursor.execute("""
-            INSERT INTO event_tags (event_id, tag)
-            VALUES (?, ?)
-            """, (event_id, tag))
-        
-        self.conn.commit()
-        return event_id
-    
-    def get_events(
+    def __init__(
         self,
-        *,
-        start: Optional[TimeSpec] = None,
-        end: Optional[TimeSpec] = None,
-        tags: Optional[Sequence[str]] = None,
-        location: Optional[str] = None,
-        chapter: Optional[int] = None
-    ) -> Sequence[TimelineEvent]:
-        """Get events matching criteria"""
-        query = ["SELECT e.* FROM timeline_events e"]
-        params: list[any] = []
-        
-        if tags:
-            query.append("""
-            INNER JOIN event_tags t ON e.id = t.event_id
-            WHERE t.tag IN ({})
-            """.format(",".join("?" * len(tags))))
-            params.extend(tags)
-        else:
-            query.append("WHERE 1=1")
-        
-        # Add chapter filter if specified
-        chapter = chapter or self.chapter
-        if chapter is not None:
-            query.append("AND e.chapter = ?")
-            params.append(chapter)
-        
-        if start:
-            if isinstance(start, str):
-                start_dt = datetime.fromisoformat(start)
-            else:
-                start_dt = start
-            if not start_dt.tzinfo:
-                start_dt = start_dt.replace(tzinfo=UTC)
-            query.append("AND e.timestamp >= ?")
-            params.append(start_dt.isoformat())
-        
-        if end:
-            if isinstance(end, str):
-                end_dt = datetime.fromisoformat(end)
-            else:
-                end_dt = end
-            if not end_dt.tzinfo:
-                end_dt = end_dt.replace(tzinfo=UTC)
-            query.append("AND e.timestamp <= ?")
-            params.append(end_dt.isoformat())
-        
-        if location:
-            query.append("AND e.location = ?")
-            params.append(location)
-        
-        query.append("ORDER BY e.timestamp")
-        
-        cursor = self.conn.cursor()
-        cursor.execute(" ".join(query), params)
-        rows = cursor.fetchall()
-        
-        events = []
-        for row in rows:
-            # Get metadata
-            cursor.execute("""
-            SELECT key, value FROM event_metadata
-            WHERE event_id = ?
-            """, (row[0],))
-            metadata = {
-                key: json.loads(value)
-                for key, value in cursor.fetchall()
-            }
-            
-            # Get tags
-            cursor.execute("""
-            SELECT tag FROM event_tags
-            WHERE event_id = ?
-            """, (row[0],))
-            metadata["tags"] = [tag[0] for tag in cursor.fetchall()]
-            
-            events.append(TimelineEvent(
-                timestamp=datetime.fromisoformat(row[2]),  # Adjusted for chapter column
-                location=row[3],
-                content=row[4],
-                metadata=metadata,
-                chapter=row[1] # Add chapter to TimelineEvent
-            ))
-        
-        return events
-    
-class CharacterRepository:
-    def __init__(self, conn: Connection, chapter: Optional[int] = None) -> None:
-        self.conn = conn
-        self.chapter = chapter
-        CharacterSchema().initialize(conn)
+        base_url="mongodb://localhost:27017/",
+        db_name="storydb",
+        collection_name="timelines",
+        chapter_end_times_collection_name="chapter_end_times",
+    ):
+        self.client = pymongo.MongoClient(base_url)
+        self.db = self.client[db_name]
+        self.timeline_collection = self.db[collection_name]
+        self.chapter_end_times_collection = self.db[
+            chapter_end_times_collection_name
+        ]
 
-    def save_character(self, character: Character) -> int:
-        """Save character to the database"""
-        cursor = self.conn.cursor()
-
-        # Insert the new character, replacing if it already exists
-        cursor.execute("""
-        INSERT OR REPLACE INTO characters (name, description, pronoun_set)
-        VALUES (?, ?, ?)
-        """, (character.name, character.description, character.pronouns.pronoun_set))
-
-        character_id = cursor.lastrowid
-        assert character_id is not None
-
-        # Insert chapter version if specified
-        cursor.execute("""
-        INSERT OR REPLACE INTO character_versions (character_id, chapter, description, pronoun_set)
-        VALUES (?, ?, ?, ?)
-        """, (character_id, self.chapter or 1, character.description, character.pronouns.pronoun_set))
-
-        # Insert attributes with chapter versioning
-        for key, value in character.attributes.items():
-            cursor.execute("""
-            INSERT OR REPLACE INTO character_attributes (character_id, chapter, key, value)
-            VALUES (?, ?, ?, ?)
-            """, (character_id, self.chapter or 1, key, json.dumps(value)))
-
-        self.conn.commit()
-        return character_id
-
-    def get_character(self, name: str, chapter: Optional[int] = None) -> Character:
-        chapter = chapter or self.chapter
-        if chapter is None:
-            raise ValueError("Chapter must be specified")
-
-        cursor = self.conn.cursor()
-
-        # Get character version
-        cursor.execute("""
-        SELECT description, pronoun_set FROM character_versions
-        WHERE character_id = (SELECT id FROM characters WHERE name = ?)
-        AND chapter = ?
-        """, (name, chapter))
-
-        row = cursor.fetchone()
-        if not row:
-            raise KeyError(f"Character not found: {name} in chapter {chapter}")
-
-        # Get attributes
-        cursor.execute("""
-        SELECT key, value FROM character_attributes
-        WHERE character_id = (SELECT id FROM characters WHERE name = ?)
-        AND chapter = ?
-        """, (name, chapter))
-
-        attributes = {
-            key: json.loads(value)
-            for key, value in cursor.fetchall()
+    def save_timeline_event(self, event: TimelineEvent) -> str:
+        """Save a timeline event to MongoDB."""
+        assert (
+            event.chapter is not None
+        ), "Chapter number must be set for timeline events"
+        event_data = {
+            "event_id": event.event_id,
+            "timestamp": event.timestamp,
+            "location": event.location,
+            "content": event.content,
+            "metadata": event.metadata,
+            "chapter": event.chapter,
         }
-
-        # Get base character info
-        cursor.execute("""
-        SELECT name FROM characters
-        WHERE name = ?
-        """, (name,))
-        base_row = cursor.fetchone()
-        if not base_row:
-            raise KeyError(f"Base character not found: {name}")
-
-        return Character.create(
-            name=base_row[0],
-            description=row[0],
-            pronoun_set=row[1],
-            **attributes
+        self.timeline_collection.update_one(
+            {"event_id": event_data["event_id"]}, {"$set": event_data}, upsert=True
         )
+        return event.event_id
+
+    def get_timeline_event(self, event_id: str) -> TimelineEvent:
+        """Retrieve a timeline event from MongoDB."""
+        event_data = self.timeline_collection.find_one({"event_id": event_id})
+        if event_data:
+            event_data = {
+                "event_id": event_data.event_id,
+                "timestamp": event_data.timestamp,
+                "location": event_data.location,
+                "content": event_data.content,
+                "metadata": event_data.metadata,
+                "chapter": event_data.chapter,
+            }
+            return event_data
+        return None
+
+    def get_all_timeline_events(
+        self, chapter: Optional[int] = None
+    ) -> List[TimelineEvent]:
+        """Retrieve all timeline events from MongoDB, optionally for a specific chapter."""
+        query = {}
+        if chapter is not None:
+            query = {"chapter": chapter}
+
+        events_data = list(self.timeline_collection.find(query))
+        events = []
+        for event_data in events_data:
+            event = TimelineEvent(
+                event_id=event_data["event_id"],
+                timestamp=event_data["timestamp"],
+                location=event_data["location"],
+                content=event_data["content"],
+                chapter=event_data["chapter"],
+                metadata=event_data["metadata"],
+            )
+            events.append(event)
+        return events
+
+    def delete_timeline_event(self, event_id: str) -> None:
+        """Delete a timeline event from MongoDB."""
+        self.timeline_collection.delete_one({"event_id": event_id})
+
+    def delete_events(self, chapter: int) -> None:
+        """Delete all events for a specific chapter."""
+        self.timeline_collection.delete_many({"chapter": chapter})
+
+
+from typing import Optional
+from ..core.models import Character, NameComponents
+from ..core.pronouns import Pronouns
+import uuid
+
+
+class CharacterRepository:
+    def __init__(
+        self,
+        base_url="mongodb://localhost:27017/",
+        db_name="storydb",
+        collection_name="characters",
+    ):
+        self.client = pymongo.MongoClient(base_url)
+        self.db = self.client[db_name]
+        self.collection = self.db[collection_name]
+
+    def save_character(self, character: Character) -> str:
+        """Save character to MongoDB"""
+        character_data = {
+            "character_id": character.character_id,
+            "name_components": {
+                "first": character.name_components.first,
+                "middle": character.name_components.middle,
+                "last": character.name_components.last,
+                "prefix": character.name_components.prefix,
+                "suffix": character.name_components.suffix,
+            },
+            "pronoun_set": (
+                character.pronouns.pronoun_set if character.pronouns else None
+            ),
+            "attributes": character.attributes,
+            "relationships": character.relationships,
+            "chapter_introduced": character.chapter_introduced,  # Save chapter introduced
+        }
+        result = self.collection.update_one(
+            {"character_id": character_data["character_id"]},
+            {"$set": character_data},
+            upsert=True,
+        )
+        return character.character_id
+
+    def get_character(self, character_id: str) -> Character:
+        """Retrieve character from MongoDB"""
+        character_data = self.collection.find_one({"character_id": character_id})
+        if character_data:
+            # Reconstruct the Character object from the dictionary
+            name_components = character_data.get("name_components", {})
+            pronoun_set = character_data.get("pronoun_set")
+
+            character = Character(
+                character_id=character_data["character_id"],
+                name_components=NameComponents(
+                    first=name_components.get("first"),
+                    middle=name_components.get("middle", []),
+                    last=name_components.get("last"),
+                    prefix=name_components.get("prefix"),
+                    suffix=name_components.get("suffix"),
+                ),
+                pronouns=Pronouns(pronoun_set) if pronoun_set else None,
+                attributes=character_data.get("attributes", {}),
+                relationships=character_data.get("relationships", {}),
+                chapter_introduced=character_data.get(
+                    "chapter_introduced"
+                ),  # Load chapter introduced
+            )
+            return character
+        return None
+
+    def delete_character(self, character_id: str) -> None:
+        """Delete character from MongoDB"""
+        result = self.collection.delete_one({"character_id": character_id})
+        if result.deleted_count == 0:
+            logger.warning(
+                f"Character with ID '{character_id}' not found for deletion."
+            )
 
     def get_all_characters(self) -> list[Character]:
         """Get all characters from the database"""
-        cursor = self.conn.cursor()
-        cursor.execute("""
-        SELECT name, description, pronoun_set FROM characters
-        """)
-        rows = cursor.fetchall()
+        characters_data = list(self.collection.find())
         characters = []
-        for row in rows:
-            name, description, pronoun_set = row
+        for character_data in characters_data:
             try:
-                character = self.get_character(name, chapter=self.chapter)
-                characters.append(character)
+                character = self.get_character(str(character_data["character_id"]))
+                if character:
+                    characters.append(character)
             except KeyError:
-                # Character version not found for the current chapter, create a base character
-                character = Character.create(
-                    name=name,
-                    description=description,
-                    pronoun_set=pronoun_set
-                )
-                characters.append(character)
+                print(f"Character not found: {character_data['character_id']}")
         return characters
+
+    def delete_characters_from_chapter_onwards(self, chapter: int) -> None:
+        """Delete characters introduced in the given chapter or later."""
+        result = self.collection.delete_many({"chapter_introduced": {"$gte": chapter}})

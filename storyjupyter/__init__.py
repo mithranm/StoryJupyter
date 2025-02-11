@@ -1,14 +1,13 @@
 # storyjupyter/__init__.py
-from .context import StoryContext, CharacterManager
+from .story import StoryManager
 from .core.models import Character, Brand, TimelineEvent
 from .core.types import PronounSet
 from .core.pronouns import Pronouns
 from .core.protocols import BrandManager, TimelineManager
 from .services.markdown import MarkdownGenerator
-
+from .services import FakerCharacterGenerator, LLMCharacterGenerator
 __all__ = [
-    'StoryContext',
-    'CharacterManager',
+    'StoryManager',
     'Character',
     'Brand',
     'TimelineEvent',
@@ -17,4 +16,6 @@ __all__ = [
     'BrandManager',
     'TimelineManager',
     'MarkdownGenerator',
+    'FakerCharacterGenerator',
+    'LLMCharacterGenerator',
 ]

@@ -5,7 +5,7 @@ from .types import (
 )
 from .pronouns import Pronouns
 from .models import Character, Brand, TimelineEvent
-from .protocols import BrandManager, TimelineManager, StoryContext
+from .protocols import BrandManager, TimelineManager
 
 __all__ = [
     'TimeSpec',
@@ -21,5 +21,4 @@ __all__ = [
     'TimelineEvent',
     'BrandManager',
     'TimelineManager',
-    'StoryContext',
 ]

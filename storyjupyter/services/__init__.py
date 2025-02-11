@@ -1,13 +1,12 @@
-# storyjupyter/services/__init__.py
-from .narrative import LLMProcessor, LangChainProcessor
 from .brand import DeterministicBrandManager
 from .timeline import StoryTimelineManager
 from .markdown import MarkdownGenerator
+from .character import FakerCharacterGenerator, LLMCharacterGenerator # Import CharacterGenerators
 
 __all__ = [
-    'LLMProcessor',
-    'LangChainProcessor', 
     'DeterministicBrandManager',
     'StoryTimelineManager',
-    'MarkdownGenerator'
+    'MarkdownGenerator',
+    'FakerCharacterGenerator',
+    'LLMCharacterGenerator',
 ]

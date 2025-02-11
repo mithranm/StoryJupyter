@@ -1,12 +1,28 @@
 # storyjupyter/core/protocols.py
 from collections.abc import Sequence
-from typing import Protocol, TypeVar, overload, Any
+from typing import Protocol, TypeVar, overload, Any, Optional
 from typing_extensions import Literal
 from datetime import datetime
 from .types import TimeSpec, Duration, EventMetadata, OutputFormat
 from .models import Character, Brand, TimelineEvent
 
 T = TypeVar("T")
+
+class CharacterGenerator(Protocol):
+    """Protocol for character generation strategies"""
+    
+    def generate(self, name: Optional[str] = None, **kwargs) -> Character:
+        """
+        Generate a single character.
+        
+        Args:
+            name: Optional name to use for the character
+            **kwargs: Implementation-specific generation parameters
+            
+        Returns:
+            Character: The generated character
+        """
+        ...
 
 class BrandManager(Protocol):
     """Manages brand name consistency"""
@@ -36,18 +52,3 @@ class TimelineManager(Protocol):
         end: TimeSpec | None = None,
         tags: Sequence[str] | None = None
     ) -> Sequence[TimelineEvent]: ...
-
-class StoryContext(Protocol):
-    """Main interface for story management"""
-    brands: BrandManager
-    timeline: TimelineManager
-    
-    async def compile(
-        self, 
-        notebooks: Sequence[str], 
-        *, 
-        format: OutputFormat = "markdown"
-    ) -> str: ...
-    
-    def export_reference(self) -> dict[str, Sequence[Brand]]: ...
-    def get_analytics(self) -> dict[str, Any]: ...

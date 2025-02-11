@@ -6,7 +6,6 @@ from ..core.types import TimeSpec, Duration, EventMetadata
 from ..core.models import TimelineEvent
 from ..core.protocols import TimelineManager
 from ..persistence.repositories import TimelineRepository
-
 class ParseError(Exception):
     """Error raised when parsing time or duration fails"""
     pass
@@ -28,17 +27,10 @@ class StoryTimelineManager(TimelineManager):
             lambda h, m, s=0: timedelta(hours=int(h), minutes=int(m), seconds=int(s or 0))
     }
     
-    def __init__(self, repository: TimelineRepository) -> None:
-        self.repository = repository
+    def __init__(self, repository :TimelineRepository):
+        self.repository = repository 
         self._current_time: Optional[datetime] = None
         self._current_location: Optional[str] = None
-        self._load_current_time()
-
-    def _load_current_time(self) -> None:
-        """Load current time from the database"""
-        time = self.repository.get_current_time()
-        if time:
-            self._current_time = time
     
     def _parse_time(self, time: TimeSpec) -> datetime:
         """Parse TimeSpec into datetime with UTC timezone"""
@@ -71,29 +63,20 @@ class StoryTimelineManager(TimelineManager):
         
         raise ParseError(f"Unrecognized duration format: {duration}")
     
-    def set_time(self, time: TimeSpec, /) -> None:
-            """Set current story time"""
-            self._current_time = self._parse_time(time)
-            self.repository.save_time(self._current_time)
-    
-    def set_location(self, location: str) -> None:
-        """Set current story location"""
-        self._current_location = location
-        
+    def set_time(self, time: datetime) -> None:
+        """Set current story time"""
+        self._current_time = time
+      
     def clear_chapter(self, chapter: int) -> None:
         """Clear all events for a specific chapter"""
         self.repository.delete_events(chapter=chapter)
     
-    def advance_time(self, duration: Duration, /) -> None:
+    def advance_time(self, duration: str) -> None:
         """Advance story time by duration"""
         if not self._current_time:
             raise RuntimeError("Current time not set. Call set_time() first.")
-            
-        try:
-            delta = self._parse_duration(duration)
-            self._current_time += delta
-        except ParseError as e:
-            raise RuntimeError(f"Failed to advance time: {e}")
+        duration_delta = self._parse_duration(duration)
+        self._current_time += duration_delta
     
     def get_current_time(self) -> datetime:
         """Get current story time"""
@@ -101,45 +84,46 @@ class StoryTimelineManager(TimelineManager):
             raise RuntimeError("Current time not set. Call set_time() first.")
         return self._current_time
     
+    def set_location(self, location: str) -> None:
+        """Set current story location"""
+        self._current_location = location
+        
     def get_current_location(self) -> str:
         """Get current story location"""
-        return self._current_location or "unknown"
+        return self._current_location or "Unspecified Location"
     
     def add_event(
-        self, 
-        content: str, 
+        self,
+        content: str,
         chapter: int,
-        *, 
+        event_id: str,
+        *,
         metadata: Optional[EventMetadata] = None,
     ) -> TimelineEvent:
         """Add event to timeline at current time and location"""
         if not self._current_time:
             raise RuntimeError("Current time not set. Call set_time() first.")
-            
+
         event = TimelineEvent(
+            event_id=event_id,
             timestamp=self._current_time,
             location=self.get_current_location(),
             content=content,
             metadata=metadata or {"tags": []},
-            chapter=chapter
+            chapter=chapter,
         )
-        self.repository.save_event(event, chapter=chapter)
+        self.repository.save_timeline_event(event)
         return event
     
-    def get_events(
-        self, 
-        *, 
-        start: Optional[TimeSpec] = None,
-        end: Optional[TimeSpec] = None,
-        tags: Optional[Sequence[str]] = None,
-        location: Optional[str] = None,
-        chapter: Optional[int] = None
-    ) -> Sequence[TimelineEvent]:
-        """Get events matching criteria"""
-        return self.repository.get_events(
-            start=start,
-            end=end,
-            tags=tags,
-            location=location,
-            chapter=chapter
-        )
+    def get_events(self, chapter: Optional[int] = None) -> Sequence[TimelineEvent]:
+        return self.repository.get_all_timeline_events(chapter=chapter)
+
+    def clear_chapter(self, chapter: int):
+        self.repository.delete_events(chapter)
+        
+    def clear_from_chapter_onwards(self, chapter: int) -> None:
+        """Clear all events from the specified chapter onwards."""
+        # Fetch all events from the specified chapter onwards
+        for event in self.repository.get_all_timeline_events():
+            if event.chapter >= chapter:
+                self.repository.delete_timeline_event(event.event_id)
