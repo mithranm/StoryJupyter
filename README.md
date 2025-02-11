@@ -48,7 +48,9 @@ StoryJupyter leverages the interactive nature of Jupyter Notebooks to provide a 
 ### Installation
 
 ```bash
-pip install storyjupyter
+git clone https://github.com/mithranm/StoryJupyter.git
+cd StoryJupyter
+pip install -e .
 ```
 
 ### Basic Usage
