@@ -1,19 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "storyjupyter"
 version = "0.1.0"
 description = "A Python library for maintaining narrative consistency in long-form writing"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+
 authors = [
     {name = "Mithran Mohanraj", email = "mithran.mohanraj@gmail.com"},
 ]
+
 dependencies = [
     "pydantic>=2.5.0",
     "faker>=19.0.0",
-    "langchain>=0.1.0",
-    "langchain-openai>=0.0.5",
     "python-slugify>=8.0.0",
     "typing-extensions>=4.8.0",
     "pymongo>=4.11.1",
+    "ollama>=0.4.7",
 ]
-requires-python = ">=3.12"
-readme = "README.md"
-license = {text = "MIT"}
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "mypy",
+    "black",
+    "isort",
+    "flake8"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
