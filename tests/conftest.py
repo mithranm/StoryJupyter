@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from unittest.mock import Mock
 
-from storyjupyter.domain.models import Character, StoryEvent, StoryMetadata, Pronouns
+from storyjupyter.domain.models import Character, StoryElement, StoryMetadata, Pronouns
 from storyjupyter.domain.interfaces import StoryRepository, CharacterGenerator
 
 
@@ -41,13 +41,13 @@ def sample_character():
 
 
 @pytest.fixture
-def sample_event():
-    """Create a sample story event"""
-    return StoryEvent(
+def sample_element():
+    """Create a sample story element"""
+    return StoryElement(
         id=uuid4(),
         time=datetime.now(timezone.utc),
         location="Test Location",
-        content="Test event content",
+        content="Test element content",
         chapter=1,
     )
 

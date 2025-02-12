@@ -1,5 +1,5 @@
 # src/storyjupyter/domain/__init__.py
-from .models import Character, StoryEvent, StoryMetadata, Pronouns, Relationship
+from .models import Character, StoryElement, StoryMetadata, Pronouns, Relationship
 from .interfaces import CharacterGenerator, StoryRepository
 from .exceptions import (
     StoryError,
@@ -10,7 +10,7 @@ from .exceptions import (
 
 __all__ = [
     "Character",
-    "StoryEvent",
+    "StoryElement",
     "StoryMetadata",
     "Pronouns",
     "Relationship",

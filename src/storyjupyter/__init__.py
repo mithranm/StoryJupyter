@@ -3,7 +3,7 @@ from .story import Story
 from .builder import StoryBuilder, create_story
 from .domain import (
     Character,
-    StoryEvent,
+    StoryElement,
     StoryMetadata,
     Pronouns,
     CharacterGenerator,
@@ -19,7 +19,7 @@ __all__ = [
     "StoryBuilder",
     "create_story",
     "Character",
-    "StoryEvent",
+    "StoryElement",
     "StoryMetadata",
     "Pronouns",
     "CharacterGenerator",

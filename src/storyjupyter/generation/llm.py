@@ -1,5 +1,5 @@
 # src/storyjupyter/generation/llm.py
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 from uuid import UUID, uuid4
 import json
 import logging
@@ -137,11 +137,11 @@ class LLMCharacterGenerator:
 
     def generate(
         self,
-        character_id: UUID = None,
+        character_id: Union[str, UUID] = None,
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
         pronouns: Optional[str] = None,
-        chapter: int = None,
+        chapter: int = 1,
         context: str = "",
         **kwargs,
     ) -> Character:
@@ -209,6 +209,7 @@ class LLMCharacterGenerator:
                 last_name=last,
                 pronouns=Pronouns.from_subject(data.get("pronouns", "they")),
                 attributes=attributes,
+                chapter_introduced=chapter,
             )
 
         except Exception as e:

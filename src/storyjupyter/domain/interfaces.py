@@ -3,7 +3,7 @@ from typing import Protocol, Sequence, Optional
 from datetime import datetime
 from uuid import UUID
 
-from .models import Character, StoryEvent, StoryMetadata
+from .models import Character, StoryElement, StoryMetadata
 
 
 class CharacterGenerator(Protocol):
@@ -44,24 +44,24 @@ class StoryRepository(Protocol):
         """Get all characters, optionally filtered by chapter introduced"""
         ...
 
-    def save_event(self, event: StoryEvent) -> None:
-        """Save story event"""
+    def save_element(self, element: StoryElement) -> None:
+        """Save story element"""
         ...
 
-    def get_events(
+    def get_elements(
         self,
         *,
         chapter: Optional[int] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-    ) -> Sequence[StoryEvent]:
-        """Get events with optional filters"""
+    ) -> Sequence[StoryElement]:
+        """Get elements with optional filters"""
         ...
 
     def clear_chapter(self, chapter: int) -> None:
-        """Remove all events and characters from specified chapter"""
+        """Remove all elements and characters from specified chapter"""
         ...
 
     def clear_from_chapter_onwards(self, chapter: int) -> None:
-        """Remove all events and characters from chapter onwards"""
+        """Remove all elements and characters from chapter onwards"""
         ...

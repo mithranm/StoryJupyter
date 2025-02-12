@@ -11,7 +11,7 @@ class UninitializedStoryError(StoryError):
 
 
 class UninitializedLocationError(StoryError):
-    """Raised when trying to add events without setting a location"""
+    """Raised when trying to add elements without setting a location"""
 
     pass
 

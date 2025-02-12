@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from storyjupyter.domain.models import Character, StoryEvent, StoryMetadata, Pronouns
+from storyjupyter.domain.models import Character, StoryElement, StoryMetadata, Pronouns
 from storyjupyter.persistence.mongodb import MongoDBStoryRepository
 
 
@@ -80,24 +80,24 @@ def test_get_characters_by_chapter(mongo_repo):
     assert chapter2_chars[0].first_name == "Charlie"
 
 
-def test_save_and_retrieve_events(mongo_repo):
-    """Test saving and retrieving events"""
-    event_time = datetime.now(timezone.utc)
-    event = StoryEvent(
+def test_save_and_retrieve_elements(mongo_repo):
+    """Test saving and retrieving elements"""
+    element_time = datetime.now(timezone.utc)
+    element = StoryElement(
         id=uuid4(),
-        time=event_time,
+        time=element_time,
         location="Test Location",
         content="Test content",
         chapter=1,
     )
 
-    mongo_repo.save_event(event)
-    retrieved = mongo_repo.get_events(chapter=1)
+    mongo_repo.save_element(element)
+    retrieved = mongo_repo.get_elements(chapter=1)
 
     assert len(retrieved) == 1
-    assert retrieved[0].id == event.id
-    assert retrieved[0].content == event.content
-    assert retrieved[0].time.timestamp() == pytest.approx(event_time.timestamp())
+    assert retrieved[0].id == element.id
+    assert retrieved[0].content == element.content
+    assert retrieved[0].time.timestamp() == pytest.approx(element_time.timestamp())
 
 
 def test_clear_chapter(mongo_repo):
@@ -108,22 +108,22 @@ def test_clear_chapter(mongo_repo):
     mongo_repo.save_character(char1)
     mongo_repo.save_character(char2)
 
-    event1 = StoryEvent(
+    element1 = StoryElement(
         id=uuid4(),
         time=datetime.now(timezone.utc),
         location="Test",
-        content="Chapter 1 event",
+        content="Chapter 1 element",
         chapter=1,
     )
-    event2 = StoryEvent(
+    element2 = StoryElement(
         id=uuid4(),
         time=datetime.now(timezone.utc),
         location="Test",
-        content="Chapter 2 event",
+        content="Chapter 2 element",
         chapter=2,
     )
-    mongo_repo.save_event(event1)
-    mongo_repo.save_event(event2)
+    mongo_repo.save_element(element1)
+    mongo_repo.save_element(element2)
 
     # Clear chapter 1
     mongo_repo.clear_chapter(1)
@@ -131,15 +131,15 @@ def test_clear_chapter(mongo_repo):
     # Verify chapter 1 data is gone but chapter 2 remains
     assert len(mongo_repo.get_characters(chapter=1)) == 0
     assert len(mongo_repo.get_characters(chapter=2)) == 1
-    assert len(mongo_repo.get_events(chapter=1)) == 0
-    assert len(mongo_repo.get_events(chapter=2)) == 1
+    assert len(mongo_repo.get_elements(chapter=1)) == 0
+    assert len(mongo_repo.get_elements(chapter=2)) == 1
 
 
 def test_clear_from_chapter_onwards(mongo_repo):
     """Test clearing chapter data from a specific chapter onwards"""
     # Create test data across three chapters
     characters = []
-    events = []
+    elements = []
 
     for chapter in [1, 2, 3]:
         char = Character(
@@ -148,15 +148,15 @@ def test_clear_from_chapter_onwards(mongo_repo):
         characters.append(char)
         mongo_repo.save_character(char)
 
-        event = StoryEvent(
+        element = StoryElement(
             id=uuid4(),
             time=datetime.now(timezone.utc),
             location="Test",
-            content=f"Chapter {chapter} event",
+            content=f"Chapter {chapter} element",
             chapter=chapter,
         )
-        events.append(event)
-        mongo_repo.save_event(event)
+        elements.append(element)
+        mongo_repo.save_element(element)
 
     # Clear from chapter 2 onwards
     mongo_repo.clear_from_chapter_onwards(2)
@@ -166,6 +166,6 @@ def test_clear_from_chapter_onwards(mongo_repo):
     assert len(all_characters) == 1
     assert all_characters[0].chapter_introduced == 1
 
-    all_events = mongo_repo.get_events()
-    assert len(all_events) == 1
-    assert all_events[0].chapter == 1
+    all_elements = mongo_repo.get_elements()
+    assert len(all_elements) == 1
+    assert all_elements[0].chapter == 1

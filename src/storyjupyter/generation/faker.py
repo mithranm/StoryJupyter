@@ -1,6 +1,6 @@
 # src/storyjupyter/generation/faker.py
 from faker import Faker
-from typing import Optional
+from typing import Optional, Union
 import random
 from uuid import UUID, uuid4
 
@@ -17,11 +17,11 @@ class FakerCharacterGenerator:
 
     def generate(
         self,
-        character_id: UUID = None,
+        character_id: Union[str, UUID] = None,
         first_name: Optional[str] = None,
         last_name: Optional[str] = None,
         pronouns: Optional[str] = None,
-        chapter: int = None,
+        chapter: int = 1,
         **kwargs,
     ) -> Character:
         """Generate a character using Faker"""
@@ -70,5 +70,6 @@ class FakerCharacterGenerator:
             middle_names=middle_names,
             last_name=last,
             pronouns=Pronouns.from_subject(pronouns),
+            chapter_introduced=chapter,
             attributes=attributes,
         )

@@ -1,11 +1,11 @@
 # src/storyjupyter/persistence/mongodb.py
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 from datetime import datetime
 from uuid import UUID
 import pymongo
 from dataclasses import asdict
 
-from ..domain.models import Character, StoryEvent, StoryMetadata
+from ..domain.models import Character, StoryElement, StoryMetadata
 from ..domain.interfaces import StoryRepository
 from ..domain.time import StoryTime
 
@@ -23,6 +23,8 @@ def _serialize_uuid(obj: dict) -> dict:
     for k, v in obj.items():
         if isinstance(v, UUID):
             result[k] = str(v)
+        elif isinstance(v, str) and k == "id":
+            result[k] = v
         elif isinstance(v, dict):
             result[k] = _serialize_uuid(v)
         elif isinstance(v, (list, set, frozenset)):
@@ -38,7 +40,7 @@ def _deserialize_uuid(obj: dict) -> dict:
     """Convert UUID strings back to UUID objects"""
     result = {}
     for k, v in obj.items():
-        if isinstance(v, str) and k in {"id", "character_id"}:
+        if isinstance(v, str) and k == "id" and len(v) == 36:
             result[k] = UUID(v)
         elif isinstance(v, dict):
             result[k] = _deserialize_uuid(v)
@@ -60,19 +62,19 @@ class MongoDBStoryRepository(StoryRepository):
         database: str,
         metadata_collection: str = "metadata",
         character_collection: str = "characters",
-        event_collection: str = "events",
+        element_collection: str = "elements",
     ):
         """Initialize MongoDB connection and collections"""
         self.client = pymongo.MongoClient(connection_string)
         self.db = self.client[database]
         self.metadata_collection = self.db[metadata_collection]
         self.character_collection = self.db[character_collection]
-        self.event_collection = self.db[event_collection]
+        self.element_collection = self.db[element_collection]
 
         # Create indexes
         self.character_collection.create_index("id", unique=True)
-        self.event_collection.create_index("id", unique=True)
-        self.event_collection.create_index(
+        self.element_collection.create_index("id", unique=True)
+        self.element_collection.create_index(
             [("chapter", pymongo.ASCENDING), ("time", pymongo.ASCENDING)]
         )
 
@@ -107,12 +109,16 @@ class MongoDBStoryRepository(StoryRepository):
         data = character.to_dict()
         data = _serialize_uuid(data)
 
+        # Check for ID collision
+        if self.character_collection.find_one({"id": data["id"]}):
+            raise ValueError(f"Character ID '{data['id']}' already exists.")
+
         # Save to MongoDB
         self.character_collection.replace_one(
-            {"id": str(character.id)}, data, upsert=True
+            {"id": data["id"]}, data, upsert=True
         )
 
-    def get_character(self, id: UUID) -> Optional[Character]:
+    def get_character(self, id: Union[str, UUID]) -> Optional[Character]:
         """Retrieve character by ID"""
         data = self.character_collection.find_one({"id": str(id)})
         if data is None:
@@ -123,7 +129,7 @@ class MongoDBStoryRepository(StoryRepository):
         data = _deserialize_uuid(data)
 
         return Character.from_dict(data)
-
+    
     def get_characters(self, chapter: Optional[int] = None) -> Sequence[Character]:
         """Get all characters, optionally filtered by chapter introduced"""
         query = {}
@@ -137,21 +143,21 @@ class MongoDBStoryRepository(StoryRepository):
             characters.append(Character.from_dict(data))
         return characters
 
-    def save_event(self, event: StoryEvent) -> None:
-        """Save story event"""
-        data = asdict(event)
+    def save_element(self, element: StoryElement) -> None:
+        """Save story element"""
+        data = asdict(element)
         data = _serialize_uuid(data)
 
-        self.event_collection.replace_one({"id": str(event.id)}, data, upsert=True)
+        self.element_collection.replace_one({"id": str(element.id)}, data, upsert=True)
 
-    def get_events(
+    def get_elements(
         self,
         *,
         chapter: Optional[int] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-    ) -> Sequence[StoryEvent]:
-        """Get events with optional filters"""
+    ) -> Sequence[StoryElement]:
+        """Get elements with optional filters"""
         query = {}
 
         if chapter is not None:
@@ -164,8 +170,8 @@ class MongoDBStoryRepository(StoryRepository):
             if end_time:
                 query["time"]["$lte"] = StoryTime.ensure_tz(end_time)
 
-        events = []
-        for data in self.event_collection.find(query).sort(
+        elements = []
+        for data in self.element_collection.find(query).sort(
             [("chapter", pymongo.ASCENDING), ("time", pymongo.ASCENDING)]
         ):
             # Clean and deserialize
@@ -175,28 +181,29 @@ class MongoDBStoryRepository(StoryRepository):
             # Convert character IDs to frozenset
             if "characters" in data:
                 data["characters"] = frozenset(
-                    UUID(x) if isinstance(x, str) else x for x in data["characters"]
+                    UUID(x) if isinstance(x, str) and len(x) == 36 else x
+                    for x in data["characters"]
                 )
 
             # Ensure timezone
             data["time"] = StoryTime.ensure_tz(data["time"])
 
-            events.append(StoryEvent(**data))
+            elements.append(StoryElement(**data))
 
-        return events
+        return elements
 
     def clear_chapter(self, chapter: int) -> None:
-        """Remove all events and characters from specified chapter"""
-        # Remove events
-        self.event_collection.delete_many({"chapter": chapter})
+        """Remove all elements and characters from specified chapter"""
+        # Remove elements
+        self.element_collection.delete_many({"chapter": chapter})
 
         # Remove characters introduced in this chapter
         self.character_collection.delete_many({"chapter_introduced": chapter})
 
     def clear_from_chapter_onwards(self, chapter: int) -> None:
-        """Remove all events and characters from chapter onwards"""
-        # Remove events
-        self.event_collection.delete_many({"chapter": {"$gte": chapter}})
+        """Remove all elements and characters from chapter onwards"""
+        # Remove elements
+        self.element_collection.delete_many({"chapter": {"$gte": chapter}})
 
         # Remove characters introduced in this chapter or later
         self.character_collection.delete_many({"chapter_introduced": {"$gte": chapter}})

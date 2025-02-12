@@ -5,7 +5,7 @@ import re
 
 
 class StoryTime:
-    """Central time management for story events"""
+    """Central time management for story elements"""
 
     # UTC timezone singleton
     UTC = timezone.utc

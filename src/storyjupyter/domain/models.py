@@ -95,8 +95,8 @@ class Character:
 
 
 @dataclass(frozen=True)
-class StoryEvent:
-    """Immutable story event"""
+class StoryElement:
+    """Immutable story element"""
 
     id: UUID
     time: datetime

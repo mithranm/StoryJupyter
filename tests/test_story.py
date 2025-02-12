@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 from unittest.mock import Mock, patch
 
-from storyjupyter.domain.models import Character, StoryEvent, StoryMetadata, Pronouns
+from storyjupyter.domain.models import Character, StoryElement, StoryMetadata, Pronouns
 from storyjupyter.domain.interfaces import StoryRepository, CharacterGenerator
 from storyjupyter.domain.exceptions import (
     UninitializedStoryError,
@@ -61,14 +61,14 @@ def test_story_initialization(mock_repo: Mock, metadata: StoryMetadata):
 def test_story_requires_time_initialization(story: Story):
     """Test story requires time to be set"""
     with pytest.raises(UninitializedStoryError):
-        story.add_event("Test event")
+        story.add_element("Test element")
 
 
 def test_story_requires_location_initialization(story: Story):
     """Test story requires location to be set"""
     story.set_time(datetime.now(timezone.utc))
     with pytest.raises(UninitializedLocationError):
-        story.add_event("Test event")
+        story.add_element("Test element")
 
 
 def test_story_advances_time(story: Story):
@@ -80,21 +80,21 @@ def test_story_advances_time(story: Story):
     assert story._current_time == initial_time + timedelta(minutes=15)
 
 
-def test_story_adds_event(story: Story, mock_repo: Mock):
-    """Test adding an event"""
+def test_story_adds_element(story: Story, mock_repo: Mock):
+    """Test adding an element"""
     time = datetime.now(timezone.utc)
     story.set_time(time)
     story.set_location("Test Location")
 
-    event = story.add_event("Test event")
+    element = story.add_element("Test element")
 
-    assert isinstance(event.id, UUID)
-    assert event.time == time
-    assert event.location == "Test Location"
-    assert event.content == "Test event"
-    assert event.chapter == 1
+    assert isinstance(element.id, UUID)
+    assert element.time == time
+    assert element.location == "Test Location"
+    assert element.content == "Test element"
+    assert element.chapter == 1
 
-    mock_repo.save_event.assert_called_once()
+    mock_repo.save_element.assert_called_once()
     assert mock_repo.save_metadata.call_count >= 1
 
 
@@ -153,20 +153,20 @@ def test_story_character_relationships(story: Story, mock_repo: Mock):
 def test_story_manuscript_generation(story: Story, mock_repo: Mock):
     """Test manuscript generation"""
     time = datetime.now(timezone.utc)
-    events = [
-        StoryEvent(
-            id=uuid4(), time=time, location="Location 1", content="Event 1", chapter=1
+    elements = [
+        StoryElement(
+            id=uuid4(), time=time, location="Location 1", content="element 1", chapter=1
         ),
-        StoryEvent(
+        StoryElement(
             id=uuid4(),
             time=time + timedelta(minutes=15),
             location="Location 2",
-            content="Event 2",
+            content="element 2",
             chapter=1,
         ),
     ]
     # Use the correct method name from the interface
-    mock_repo.get_events.return_value = events
+    mock_repo.get_elements.return_value = elements
 
     manuscript = story.generate_manuscript()
 
@@ -177,6 +177,6 @@ def test_story_manuscript_generation(story: Story, mock_repo: Mock):
     assert "## Location 1" in manuscript
     assert "## Location 2" in manuscript
 
-    # Check event content
-    assert "Event 1" in manuscript
-    assert "Event 2" in manuscript
+    # Check element content
+    assert "element 1" in manuscript
+    assert "element 2" in manuscript

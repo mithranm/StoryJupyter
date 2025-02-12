@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from storyjupyter.domain.models import (
     Character,
-    StoryEvent,
+    StoryElement,
     StoryMetadata,
     Pronouns,
     Relationship,
@@ -83,11 +83,11 @@ def test_character_relationships():
     assert alice.relationships[bob.id].description == "Twin siblings"
 
 
-def test_story_event():
-    """Test story event model"""
-    # Basic event creation
+def test_story_element():
+    """Test story element model"""
+    # Basic element creation
     time = datetime.now(timezone.utc)
-    event = StoryEvent(
+    element = StoryElement(
         id=uuid4(),
         time=time,
         location="Test Location",
@@ -95,14 +95,14 @@ def test_story_event():
         chapter=1,
     )
 
-    assert event.time.tzinfo is not None  # Ensure timezone-aware
-    assert event.location == "Test Location"
-    assert event.content == "Test content"
-    assert event.chapter == 1
+    assert element.time.tzinfo is not None  # Ensure timezone-aware
+    assert element.location == "Test Location"
+    assert element.content == "Test content"
+    assert element.chapter == 1
 
-    # Event with character references
+    # element with character references
     char_id = uuid4()
-    event_with_chars = StoryEvent(
+    element_with_chars = StoryElement(
         id=uuid4(),
         time=time,
         location="Test Location",
@@ -111,8 +111,8 @@ def test_story_event():
         characters=frozenset([char_id]),
     )
 
-    assert char_id in event_with_chars.characters
-    assert len(event_with_chars.characters) == 1
+    assert char_id in element_with_chars.characters
+    assert len(element_with_chars.characters) == 1
 
 
 def test_story_metadata():

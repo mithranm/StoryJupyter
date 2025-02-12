@@ -1,8 +1,8 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 from datetime import datetime
 from uuid import UUID
 
-from ..domain.models import Character, StoryEvent, StoryMetadata
+from ..domain.models import Character, StoryElement, StoryMetadata
 from ..domain.interfaces import StoryRepository
 from ..domain.time import StoryTime
 
@@ -16,12 +16,12 @@ class DummyStoryRepository(StoryRepository):
         database: str = "",
         metadata_collection: str = "metadata",
         character_collection: str = "characters",
-        event_collection: str = "events",
+        element_collection: str = "elements",
     ):
         """Initialize dummy repository with in-memory storage"""
         self._metadata = None
         self._characters = {}
-        self._events = []
+        self._elements = []
 
     def save_metadata(self, metadata: StoryMetadata) -> None:
         """Save story metadata in memory"""
@@ -33,9 +33,11 @@ class DummyStoryRepository(StoryRepository):
 
     def save_character(self, character: Character) -> None:
         """Save character in memory"""
+        if str(character.id) in self._characters:
+            raise ValueError(f"Character ID '{character.id}' already exists.")
         self._characters[str(character.id)] = character
 
-    def get_character(self, id: UUID) -> Optional[Character]:
+    def get_character(self, id: Union[str, UUID]) -> Optional[Character]:
         """Retrieve character by ID"""
         return self._characters.get(str(id))
 
@@ -50,50 +52,50 @@ class DummyStoryRepository(StoryRepository):
             if getattr(char, "chapter_introduced", None) == chapter
         ]
 
-    def save_event(self, event: StoryEvent) -> None:
-        """Save story event in memory"""
-        # Check if event with same ID already exists
-        existing_event_index = next(
-            (index for index, e in enumerate(self._events) if e.id == event.id), None
+    def save_element(self, element: StoryElement) -> None:
+        """Save story element in memory"""
+        # Check if element with same ID already exists
+        existing_element_index = next(
+            (index for index, e in enumerate(self._elements) if e.id == element.id), None
         )
 
-        if existing_event_index is not None:
-            self._events[existing_event_index] = event
+        if existing_element_index is not None:
+            self._elements[existing_element_index] = element
         else:
-            self._events.append(event)
+            self._elements.append(element)
 
-    def get_events(
+    def get_elements(
         self,
         *,
         chapter: Optional[int] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
-    ) -> Sequence[StoryEvent]:
-        """Get events with optional filters"""
-        filtered_events = self._events.copy()
+    ) -> Sequence[StoryElement]:
+        """Get elements with optional filters"""
+        filtered_elements = self._elements.copy()
 
         # Filter by chapter
         if chapter is not None:
-            filtered_events = [
-                event for event in filtered_events if event.chapter == chapter
+            filtered_elements = [
+                element for element in filtered_elements if element.chapter == chapter
             ]
 
         # Filter by time range
         if start_time is not None or end_time is not None:
-            filtered_events = [
-                event
-                for event in filtered_events
-                if (start_time is None or event.time >= StoryTime.ensure_tz(start_time))
-                and (end_time is None or event.time <= StoryTime.ensure_tz(end_time))
+            filtered_elements = [
+                element
+                for element in filtered_elements
+                if (start_time is None or element.time >= StoryTime.ensure_tz(start_time))
+                and (end_time is None or element.time <= StoryTime.ensure_tz(end_time))
             ]
 
         # Sort by chapter and time
-        return sorted(filtered_events, key=lambda e: (e.chapter, e.time))
+        return sorted(filtered_elements, key=lambda e: (e.chapter, e.time))
 
     def clear_chapter(self, chapter: int) -> None:
-        """Remove all events and characters from specified chapter"""
-        # Remove events
-        self._events = [event for event in self._events if event.chapter != chapter]
+        """Remove all elements and characters from specified chapter"""
+        # Remove elements
+        self._elements = [element for element in self._elements if element.chapter != chapter]
 
         # Remove characters
         self._characters = {
@@ -103,9 +105,9 @@ class DummyStoryRepository(StoryRepository):
         }
 
     def clear_from_chapter_onwards(self, chapter: int) -> None:
-        """Remove all events and characters from chapter onwards"""
-        # Remove events
-        self._events = [event for event in self._events if event.chapter < chapter]
+        """Remove all elements and characters from chapter onwards"""
+        # Remove elements
+        self._elements = [element for element in self._elements if element.chapter < chapter]
 
         # Remove characters
         self._characters = {
