@@ -50,32 +50,7 @@ StoryJupyter leverages the interactive nature of Jupyter Notebooks to provide a 
 ```bash
 git clone https://github.com/mithranm/StoryJupyter.git
 cd StoryJupyter
-pip install -e .
-```
-
-### Basic Usage
-
-```python
-from storyjupyter import StoryManager
-from datetime import datetime
-
-# Initialize story
-story = StoryManager(db_name="my_story", chapter=1)
-
-# Set initial time and location
-story.set_time(datetime(2025, 1, 1, 12, 0, 0))
-story.set_location("Town Square")
-
-# Create a character
-protagonist = story.create_character(character_id="protagonist")
-
-# Add story events
-story.print("The clock tower strikes noon.")
-story.advance_time("15 minutes")
-story.print(f"A figure emerges from the crowd. {protagonist.name.first} looks around nervously.")
-
-# Generate manuscript
-manuscript = story.generate_manuscript()
+pip install -e . # You will probably find bugs, best to install in editable mode to fix them yourself. Bonus Points if you alert me to them.
 ```
 
 ## Examples
