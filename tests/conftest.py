@@ -3,10 +3,19 @@ import pytest
 from datetime import datetime, timezone
 from uuid import uuid4
 from unittest.mock import Mock
-
+import os
+from dotenv import load_dotenv
+        
 from storyjupyter.domain.models import Character, StoryElement, StoryMetadata, Pronouns
 from storyjupyter.domain.interfaces import StoryRepository, CharacterGenerator
 
+def pytest_configure(config):
+    """
+    Load environment variables from .env file if it exists.
+    """
+    dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path)
 
 @pytest.fixture
 def mock_repo():

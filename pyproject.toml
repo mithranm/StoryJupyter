@@ -21,6 +21,7 @@ dependencies = [
     "typing-extensions>=4.8.0",
     "pymongo>=4.11.1",
     "ollama>=0.4.7",
+    "python-dotenv>=1.0.1",
 ]
 
 [project.optional-dependencies]
