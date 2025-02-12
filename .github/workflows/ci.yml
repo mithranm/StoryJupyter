@@ -1,7 +1,7 @@
 # .github/workflows/ci.yml
 name: Python CI
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   test:

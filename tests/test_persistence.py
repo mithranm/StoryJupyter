@@ -12,11 +12,6 @@ def use_mongodb():
     """Determine whether to use MongoDB based on an environment variable."""
     return os.getenv("TEST_WITH_MONGODB", "False").lower() == "true"
 
-@pytest.fixture(scope="session")
-def use_mongodb():
-    """Determine whether to use MongoDB based on an environment variable."""
-    return os.getenv("TEST_WITH_MONGODB", "False").lower() == "true"
-
 @pytest.fixture
 def story_repo(use_mongodb):
     """Create a test repository, either MongoDB or Dummy."""
