@@ -1,0 +1,1 @@
+I'm working on a custom license for any stories that appear here. I am sharing them with the community as an EXAMPLE of how StoryJupyter can be used, but I am NOT authorizing the copying of the prose.
